@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import DoneOutlineRoundedIcon from "@mui/icons-material/DoneOutlineRounded";
 import {
     Button,
@@ -13,6 +13,7 @@ import {
   import { create } from "@mui/material/styles/createTransitions";
   import axios from "axios";
   import { useNavigate } from "react-router-dom";
+  import { myContext } from "./MainContainer";
 
 function CreateGroups() {
     const lightTheme = useSelector((state) => state.themeKey);
@@ -24,6 +25,7 @@ function CreateGroups() {
       nav("/");
     }
     const user = userData.data;
+    const { refresh, setRefresh } = useContext(myContext);
     const [groupName, setGroupName] = useState("");
     const [open, setOpen] = React.useState(false);
   
@@ -51,9 +53,10 @@ function CreateGroups() {
           users: '["647d94aea97e40a17278c7e5","647d999e4c3dd7ca9a2e6543"]',
         },
         config
-      );
-      
-      nav("/app/groups");
+      ).then(() => {
+        setRefresh(!refresh);
+        nav("/app/groups");
+      });
     };
 
     return (

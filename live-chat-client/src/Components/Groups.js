@@ -95,8 +95,10 @@ function Groups() {
                           userId: userData.data._id,
                         },
                         config
-                      );
-                      dispatch(refreshSidebarFun());
+                      ).then(() => {
+                          dispatch(refreshSidebarFun());
+                          setRefresh(!refresh);
+                      });
                     }}
                   >
                     <p className={"con-icon" + (lightTheme ? "" : " dark")}>T</p>

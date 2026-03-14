@@ -29,10 +29,11 @@ function ChatArea() {
     // const refresh = useSelector((state) => state.refreshKey);
     const { refresh, setRefresh } = useContext(myContext);
     const [loaded, setloaded] = useState(false);
+    // Add a chatCache state to store messages keyed by chat_id
+    const [chatCache, setChatCache] = useState({});
     const [socketConnectionStatus, setSocketConnectionStatus] = useState(false);
 
     const sendMessage = () => {
-      var data = null;
     // console.log("SendMessage Fired to", chat_id._id);
     const config = {
       headers: {
@@ -50,12 +51,10 @@ function ChatArea() {
       )
       .then(({ data }) => {
         console.log("Message Fired");
+        socket.emit("newMessage", data);
+        setRefresh(!refresh);
       });
-      socket.emit("new Message", data);
     };
-  // const scrollToBottom = () => {
-  //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  // };
 
   //connect to socket
   useEffect(() => {
@@ -70,12 +69,26 @@ function ChatArea() {
   useEffect(() => {
     socket.on("message received", (newMessage) => {
       if(!allMessagesCopy || allMessagesCopy._id !== newMessage._id){
-        // setAllMessages([...allMessages], newMessage);
+        // setAllMessages([...allMessagesCopy, newMessage]);
       }else{
-        setAllMessages([...allMessages], newMessage);
+        setAllMessages([...allMessages, newMessage]);
       }
+      setRefresh(!refresh);
     });
   });
+
+  // optimize chat switching to prevent flicker
+  useEffect(() => {
+    // If we have cached messages for this chat, load them immediately
+    if (chatCache[chat_id]) {
+        setAllMessages(chatCache[chat_id]);
+        setloaded(true);
+    } else {
+        // Only clear and show loader if it's a completely unseen chat
+        setloaded(false);
+        setAllMessages([]);
+    }
+  }, [chat_id]);
 
   //fetch Chats
   useEffect(() => {
@@ -89,13 +102,15 @@ function ChatArea() {
       .get("http://localhost:8080/message/" + chat_id, config)
       .then(({ data }) => {
         setAllMessages(data);
+        // Cache the newly fetched messages
+        setChatCache(prev => ({ ...prev, [chat_id]: data }));
         setloaded(true);
         socket.emit("join chat", chat_id);
         // console.log("Data from Acess Chat API ", data);
       });
       setAllMessagesCopy(allMessages);
     // scrollToBottom();
-    }, [refresh, chat_id, userData.data.token, allMessages]);
+    }, [refresh, chat_id, userData.data.token]);
 
     if (!loaded) {
     return (
@@ -150,6 +165,9 @@ function ChatArea() {
                 .map((message, index) => {
                   const sender = message.sender;
                   const self_id = userData.data._id;
+                  
+                  if (!sender) return null;
+
                   if (sender._id === self_id) {
                     // console.log("I sent it ");
                     return <MessageSelf props={message} key={index} />;
@@ -174,12 +192,11 @@ function ChatArea() {
                     // console.log(event);
                         sendMessage();
                         setMessageContent("");
-                        setRefresh(!refresh);
                     }
                     }}/>
                 <IconButton className={"icon" + (lightTheme ? "" : " dark")} onClick={() => {
                     sendMessage();
-                    setRefresh(!refresh);
+                    setMessageContent("");
                     }}
                 >
                 <SendIcon />

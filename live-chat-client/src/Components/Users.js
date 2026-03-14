@@ -88,8 +88,10 @@ function Users() {
                                             userId: user._id,
                                         },
                                         config
-                                    );
-                                    dispatch(refreshSidebarFun());
+                                    ).then(() => {
+                                        dispatch(refreshSidebarFun());
+                                        setRefresh(!refresh);
+                                    });
                                 }}
                             >
                                 <p className={"con-icon" + (lightTheme ? "" : " dark")}>T</p>
