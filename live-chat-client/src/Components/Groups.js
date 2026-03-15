@@ -109,6 +109,7 @@ function Groups() {
                       ).then(() => {
                           dispatch(refreshSidebarFun());
                           setRefresh(!refresh);
+                          nav("/app/chat/" + group._id + "&" + group.chatName);
                       });
                     }}
                   >

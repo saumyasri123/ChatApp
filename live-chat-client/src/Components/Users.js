@@ -99,9 +99,10 @@ function Users() {
                                             userId: user._id,
                                         },
                                         config
-                                    ).then(() => {
+                                    ).then(({ data }) => {
                                         dispatch(refreshSidebarFun());
                                         setRefresh(!refresh);
+                                        nav("/app/chat/" + data._id + "&" + user.name);
                                     });
                                 }}
                             >
