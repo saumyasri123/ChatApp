@@ -9,8 +9,7 @@ import {
     DialogTitle,
     IconButton,
   } from "@mui/material";
-  import { useDispatch, useSelector } from "react-redux";
-  import { create } from "@mui/material/styles/createTransitions";
+  import { useSelector } from "react-redux";
   import axios from "axios";
   import { useNavigate } from "react-router-dom";
   import { myContext } from "./MainContainer";
@@ -18,7 +17,6 @@ import {
 function CreateGroups() {
     const lightTheme = useSelector((state) => state.themeKey);
     const userData = JSON.parse(localStorage.getItem("userData"));
-    // console.log("Data from LocalStorage : ", userData);
     const nav = useNavigate();
     if (!userData) {
       console.log("User not Authenticated");
@@ -37,25 +35,27 @@ function CreateGroups() {
       setOpen(false);
     };
   
-    console.log("User Data from CreateGroups : ", userData);
-  
     const createGroup = () => {
+      if (!groupName.trim()) return;
       const config = {
         headers: {
           Authorization: `Bearer ${user.token}`,
         },
       };
-  
+      // Only pass the current logged-in user as initial member (no stale hardcoded IDs)
       axios.post(
         "http://localhost:8080/chat/createGroup",
         {
           name: groupName,
-          users: '["647d94aea97e40a17278c7e5","647d999e4c3dd7ca9a2e6543"]',
+          users: JSON.stringify([user._id]),
         },
         config
       ).then(() => {
         setRefresh(!refresh);
         nav("/app/groups");
+      }).catch((err) => {
+        console.error("Create group failed:", err?.response?.data?.message || err.message);
+        alert("Failed to create group. Please try again.");
       });
     };
 
@@ -73,8 +73,8 @@ function CreateGroups() {
               </DialogTitle>
               <DialogContent>
                 <DialogContentText id="alert-dialog-description">
-                  This will create a create group in which you will be the admin and
-                  other will be able to join this group.
+                  This will create a group in which you will be the admin and
+                  others will be able to join this group.
                 </DialogContentText>
               </DialogContent>
               <DialogActions>
@@ -102,8 +102,9 @@ function CreateGroups() {
             <IconButton
               className={"icon" + (lightTheme ? "" : " dark")}
               onClick={() => {
-                handleClickOpen();
-                // createGroup();
+                if (groupName.trim()) {
+                  handleClickOpen();
+                }
               }}
             >
               <DoneOutlineRoundedIcon />

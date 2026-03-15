@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import "./myStyle.css";
 import SearchIcon from '@mui/icons-material/Search';
 import { IconButton } from "@mui/material";
@@ -41,7 +41,7 @@ function Groups() {
           console.log("Group Data from API ", response.data);
           SetGroups(response.data);
         });
-    }, [refresh]);
+    }, [refresh, user.token]);
     
     return(
         <AnimatePresence>

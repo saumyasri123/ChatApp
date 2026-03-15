@@ -1,10 +1,10 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
 import DeleteIcon from '@mui/icons-material/Delete';
 import SendIcon from '@mui/icons-material/Send';
 import { IconButton } from "@mui/material";
 import MessageOthers from "./MessageOthers";
 import MessageSelf from "./MessageSelf";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { useParams } from "react-router-dom";
 import Skeleton from "@mui/material/Skeleton";
 import axios from "axios";
@@ -13,198 +13,181 @@ import io from "socket.io-client";
 
 const ENDPOINT = "http://localhost:8080";
 
-var socket, chat;
+// Single persistent socket — created once outside the component
+var socket = io(ENDPOINT);
 
-function ChatArea() { 
+function ChatArea() {
     const lightTheme = useSelector((state) => state.themeKey);
     const [messageContent, setMessageContent] = useState("");
     const messagesEndRef = useRef(null);
     const dyParams = useParams();
     const [chat_id, chat_user] = dyParams._id.split("&");
-    // console.log(chat_id, chat_user);
     const userData = JSON.parse(localStorage.getItem("userData"));
     const [allMessages, setAllMessages] = useState([]);
-    const [allMessagesCopy, setAllMessagesCopy] = useState([]);
-    // console.log("Chat area id : ", chat_id._id);
-    // const refresh = useSelector((state) => state.refreshKey);
     const { refresh, setRefresh } = useContext(myContext);
     const [loaded, setloaded] = useState(false);
-    // Add a chatCache state to store messages keyed by chat_id
-    const [chatCache, setChatCache] = useState({});
-    const [socketConnectionStatus, setSocketConnectionStatus] = useState(false);
+    // Per-chat message cache so switching is instant on revisit
+    const chatCacheRef = useRef({});
 
-    const sendMessage = () => {
-    // console.log("SendMessage Fired to", chat_id._id);
-    const config = {
-      headers: {
-        Authorization: `Bearer ${userData.data.token}`,
-      },
-    };
-    axios
-      .post(
-        "http://localhost:8080/message/",
-        {
-          content: messageContent,
-          chatId: chat_id,
-        },
-        config
-      )
-      .then(({ data }) => {
-        console.log("Message Fired");
-        socket.emit("newMessage", data);
-        setRefresh(!refresh);
-      });
-    };
+    // ── 1. Socket setup: done once per component mount ──────────────────────
+    useEffect(() => {
+        socket.emit("setup", userData);
+        // No cleanup needed for "setup" — it's a one-shot event
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-  //connect to socket
-  useEffect(() => {
-    socket = io(ENDPOINT);
-    socket.emit("setup", userData);
-    socket.on("connection", () =>{
-      setSocketConnectionStatus(!socketConnectionStatus);
-    });
-  },[]);
-
-  // new message received
-  useEffect(() => {
-    socket.on("message received", (newMessage) => {
-      if(!allMessagesCopy || allMessagesCopy._id !== newMessage._id){
-        // setAllMessages([...allMessagesCopy, newMessage]);
-      }else{
-        setAllMessages([...allMessages, newMessage]);
-      }
-      setRefresh(!refresh);
-    });
-  });
-
-  // optimize chat switching to prevent flicker
-  useEffect(() => {
-    // If we have cached messages for this chat, load them immediately
-    if (chatCache[chat_id]) {
-        setAllMessages(chatCache[chat_id]);
-        setloaded(true);
-    } else {
-        // Only clear and show loader if it's a completely unseen chat
-        setloaded(false);
-        setAllMessages([]);
-    }
-  }, [chat_id]);
-
-  //fetch Chats
-  useEffect(() => {
-    console.log("Users refreshed");
-    const config = {
-      headers: {
-        Authorization: `Bearer ${userData.data.token}`,
-      },
-    };
-    axios
-      .get("http://localhost:8080/message/" + chat_id, config)
-      .then(({ data }) => {
-        setAllMessages(data);
-        // Cache the newly fetched messages
-        setChatCache(prev => ({ ...prev, [chat_id]: data }));
-        setloaded(true);
+    // ── 2. Join the correct chat room whenever chat_id changes ───────────────
+    useEffect(() => {
         socket.emit("join chat", chat_id);
-        // console.log("Data from Acess Chat API ", data);
-      });
-      setAllMessagesCopy(allMessages);
-    // scrollToBottom();
-    }, [refresh, chat_id, userData.data.token]);
+    }, [chat_id]);
 
+    // ── 3. Listen for incoming messages — cleaned up on every re-attach ──────
+    useEffect(() => {
+        const handleNewMessage = (newMessage) => {
+            // Only append if the message belongs to our current chat
+            if (newMessage.chat?._id === chat_id) {
+                setAllMessages((prev) => [...prev, newMessage]);
+                // Invalidate cache for this chat so next fetch is fresh
+                chatCacheRef.current[chat_id] = undefined;
+            }
+            setRefresh((r) => !r);
+        };
+
+        socket.on("message received", handleNewMessage);
+        return () => {
+            socket.off("message received", handleNewMessage);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chat_id]);
+
+    // ── 4. Fetch messages – only when chat_id or refresh changes ────────────
+    useEffect(() => {
+        // Show cache instantly while real request runs in background
+        if (chatCacheRef.current[chat_id]) {
+            setAllMessages(chatCacheRef.current[chat_id]);
+            setloaded(true);
+        } else {
+            setloaded(false);
+            setAllMessages([]);
+        }
+
+        const config = {
+            headers: {
+                Authorization: `Bearer ${userData.data.token}`,
+            },
+        };
+        axios
+            .get("http://localhost:8080/message/" + chat_id, config)
+            .then(({ data }) => {
+                setAllMessages(data);
+                chatCacheRef.current[chat_id] = data;   // update cache
+                setloaded(true);
+            })
+            .catch((err) => {
+                console.error("Fetch messages failed:", err.message);
+                setloaded(true); // stop loading even on error
+            });
+    // ⚠️ allMessages intentionally excluded — adding it causes infinite loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chat_id, refresh]);
+
+    // ── 5. Send a message ────────────────────────────────────────────────────
+    const sendMessage = useCallback(() => {
+        if (!messageContent.trim()) return;
+        const config = {
+            headers: {
+                Authorization: `Bearer ${userData.data.token}`,
+            },
+        };
+        axios
+            .post(
+                "http://localhost:8080/message/",
+                { content: messageContent, chatId: chat_id },
+                config
+            )
+            .then(({ data }) => {
+                socket.emit("newMessage", data);
+                setRefresh((r) => !r);
+            })
+            .catch((err) => {
+                console.error("Send message failed:", err.message);
+            });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [messageContent, chat_id]);
+
+    // ── Render ────────────────────────────────────────────────────────────────
     if (!loaded) {
-    return (
-      <div
-        style={{
-          border: "20px",
-          padding: "10px",
-          width: "100%",
-          display: "flex",
-          flexDirection: "column",
-          gap: "10px",
-        }}
-      >
-        <Skeleton
-          variant="rectangular"
-          sx={{ width: "100%", borderRadius: "10px" }}
-          height={60}
-        />
-        <Skeleton
-          variant="rectangular"
-          sx={{
-            width: "100%",
-            borderRadius: "10px",
-            flexGrow: "1",
-          }}
-        />
-        <Skeleton
-          variant="rectangular"
-          sx={{ width: "100%", borderRadius: "10px" }}
-          height={60}
-        />
-      </div>
-    );
-    } else {
+        return (
+            <div
+                style={{
+                    padding: "10px",
+                    width: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                }}
+            >
+                <Skeleton variant="rectangular" sx={{ width: "100%", borderRadius: "10px" }} height={60} />
+                <Skeleton variant="rectangular" sx={{ width: "100%", borderRadius: "10px", flexGrow: "1" }} />
+                <Skeleton variant="rectangular" sx={{ width: "100%", borderRadius: "10px" }} height={60} />
+            </div>
+        );
+    }
+
     return (
         <div className={"chatArea-container" + (lightTheme ? "" : " dark")}>
             <div className={"chatArea-header" + (lightTheme ? "" : " dark")}>
                 <p className={"con-icon" + (lightTheme ? "" : " dark")}>{chat_user[0]}</p>
                 <div className={"header-text" + (lightTheme ? "" : " dark")}>
                     <p className={"con-title" + (lightTheme ? "" : " dark")}>{chat_user}</p>
-                    {/* <p className="con-timeStamp">{props.timeStamp}</p>     */}
-                </div> 
+                </div>
                 <IconButton className={"icon" + (lightTheme ? "" : " dark")}>
-                    <DeleteIcon/>
-                </IconButton>       
+                    <DeleteIcon />
+                </IconButton>
             </div>
 
             <div className={"messages-container" + (lightTheme ? "" : " dark")}>
                 {allMessages
-                .slice(0)
-                .reverse()
-                .map((message, index) => {
-                  const sender = message.sender;
-                  const self_id = userData.data._id;
-                  
-                  if (!sender) return null;
-
-                  if (sender._id === self_id) {
-                    // console.log("I sent it ");
-                    return <MessageSelf props={message} key={index} />;
-                  } else {
-                    // console.log("Someone Sent it");
-                    return <MessageOthers props={message} key={index} />;
-                  }
-            })}
+                    .slice(0)
+                    .reverse()
+                    .map((message, index) => {
+                        const sender = message.sender;
+                        const self_id = userData.data._id;
+                        if (!sender) return null;
+                        if (sender._id === self_id) {
+                            return <MessageSelf props={message} key={index} />;
+                        } else {
+                            return <MessageOthers props={message} key={index} />;
+                        }
+                    })}
             </div>
 
-        <div ref={messagesEndRef} className="BOTTOM" />
+            <div ref={messagesEndRef} className="BOTTOM" />
             <div className={"text-input-area" + (lightTheme ? "" : " dark")}>
                 <input
                     placeholder="Type a Message"
                     className={"search-box" + (lightTheme ? "" : " dark")}
                     value={messageContent}
-                    onChange={(e) => {
-                      setMessageContent(e.target.value);
-                    }}
+                    onChange={(e) => setMessageContent(e.target.value)}
                     onKeyDown={(event) => {
-                    if (event.code == "Enter") {  
-                    // console.log(event);
+                        if (event.code === "Enter") {
+                            sendMessage();
+                            setMessageContent("");
+                        }
+                    }}
+                />
+                <IconButton
+                    className={"icon" + (lightTheme ? "" : " dark")}
+                    onClick={() => {
                         sendMessage();
                         setMessageContent("");
-                    }
-                    }}/>
-                <IconButton className={"icon" + (lightTheme ? "" : " dark")} onClick={() => {
-                    sendMessage();
-                    setMessageContent("");
                     }}
                 >
-                <SendIcon />
-            </IconButton>
+                    <SendIcon />
+                </IconButton>
             </div>
         </div>
     );
-  }
 }
 
 export default ChatArea;

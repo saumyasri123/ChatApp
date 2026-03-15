@@ -13,7 +13,6 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toggleTheme } from "../Features/themeSlice";
 import axios from "axios";
-import { refreshSidebarFun } from "../Features/refreshSidebar";
 import { myContext } from "./MainContainer";
 
 // import ChatArea from "./ChatArea"; 
@@ -46,9 +45,10 @@ function Sidebar() {
         axios.get("http://localhost:8080/chat/", config).then((response) => {
             // console.log("Data refresh in sidebar ", response.data);
             setConversations(response.data);
+            setConversations(response.data);
             // setRefresh(!refresh);
         });
-    }, [refresh]);
+    }, [refresh, user.token]);
 
     return (
         <div className="sidebar-container">
@@ -97,7 +97,7 @@ function Sidebar() {
                 if(conversation.isGroupChat){
                     chatName = conversation.chatName;
                 }else{
-                    conversation.users.map((user) =>{
+                    conversation.users.forEach((user) =>{
                         if(user._id !== userData.data._id){
                             chatName = user.name;
                         }
