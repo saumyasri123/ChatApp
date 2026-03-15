@@ -18,6 +18,7 @@ function Groups() {
     const lightTheme = useSelector((state) => state.themeKey);
     const dispatch = useDispatch();
     const [groups, SetGroups] = useState([]);
+    const [searchQuery, setSearchQuery] = useState("");
     const userData = JSON.parse(localStorage.getItem("userData"));
     // console.log("Data from LocalStorage : ", userData);
     const nav = useNavigate();
@@ -70,11 +71,21 @@ function Groups() {
             <IconButton className={"icon" + (lightTheme ? "" : " dark")}>
                 <SearchIcon />
             </IconButton>
-            <input placeholder="Search" className={"search-box" + (lightTheme ? "" : " dark")} />
+            <input
+                placeholder="Search"
+                className={"search-box" + (lightTheme ? "" : " dark")}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+            />
             </div>
 
             <div className="ug-list">
-                {groups.map((group, index) => {
+                {groups
+                .filter((g) =>
+                    !searchQuery.trim() ||
+                    g.chatName.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+                .map((group, index) => {
                 return (    
                     <motion.div
                     whileHover={{ scale: 1.01 }}

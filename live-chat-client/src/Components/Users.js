@@ -16,6 +16,7 @@ function Users() {
     const { refresh, setRefresh } = useContext(myContext);
     const lightTheme = useSelector((state) => state.themeKey);
     const [users, setUsers] = useState([]);
+    const [searchQuery, setSearchQuery] = useState("");
     const userData = JSON.parse(localStorage.getItem("userData"));
     // console.log("Data from LocalStorage : ", userData);
     const nav = useNavigate();
@@ -65,11 +66,21 @@ function Users() {
                     <IconButton className={"icon" + (lightTheme ? "" : " dark")}>
                         <SearchIcon />
                     </IconButton>
-                    <input placeholder="Search" className={"search-box" + (lightTheme ? "" : " dark")} />
+                    <input
+                        placeholder="Search"
+                        className={"search-box" + (lightTheme ? "" : " dark")}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                 </div>
 
                 <div className="ug-list">
-                    {users.map((user, index) => {
+                    {users
+                    .filter((u) =>
+                        !searchQuery.trim() ||
+                        u.name.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                    .map((user, index) => {
                         return (
                             <motion.div
                                 whileHover={{ scale: 1.01 }}

@@ -25,6 +25,7 @@ function Sidebar() {
     const { refresh, setRefresh } = useContext(myContext);
     console.log("Context API : refresh : ", refresh);
     const [conversations, setConversations] = useState([]);
+    const [searchQuery, setSearchQuery] = useState("");
     // console.log("Conversations of Sidebar : ", conversations);
     const userData = JSON.parse(localStorage.getItem("userData"));
     // console.log("Data from LocalStorage : ", userData);
@@ -87,11 +88,24 @@ function Sidebar() {
                 <IconButton className={"icon" + (lightTheme ? "" : " dark")}>
                     <SearchIcon />
                 </IconButton>
-                <input placeholder="Search" className={"search-box" + (lightTheme ? "" : " dark")} />
+                <input
+                    placeholder="Search"
+                    className={"search-box" + (lightTheme ? "" : " dark")}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
             </div>
 
             <div className={"sb-conversations" + (lightTheme ? "" : " dark")}>
-                {conversations.map((conversation, index) => {
+                {conversations
+                .filter((conv) => {
+                    if (!searchQuery.trim()) return true;
+                    const name = conv.isGroupChat
+                        ? conv.chatName
+                        : conv.users.find((u) => u._id !== userData.data._id)?.name || "";
+                    return name.toLowerCase().includes(searchQuery.toLowerCase());
+                })
+                .map((conversation, index) => {
                 // console.log("current convo : ", conversation);
                 var chatName = "";
                 if(conversation.isGroupChat){
@@ -106,7 +120,7 @@ function Sidebar() {
                 if (conversation.users.length === 1) {
                     return <div key={index}></div>;
                 }
-                if (conversation.latestMessage === undefined) {
+                if (!conversation.latestMessage) {
                 // console.log("No Latest Message with ", conversation.users[1]);
                 return (
                     <div
@@ -159,7 +173,7 @@ function Sidebar() {
                     <p className={"con-title" + (lightTheme ? "" : " dark")}>{chatName}</p>
                     {/* <p className={"con-icon" + (lightTheme ? "" : " dark")}>{conversation.users[1].name[0]}</p> */}
                     {/* <p className={"con-title" + (lightTheme ? "" : " dark")}>{conversation.users[1].name}</p> */}
-                    <p lassName="con-lastMessage">{conversation.latestMessage.content}</p>
+                    <p className="con-lastMessage">{conversation.latestMessage?.content}</p>
                     {/* <p className={"con-timeStamp" + (lightTheme ? "" : " dark")}>{conversation.timeStamp}</p> */}
                 </div>
             );

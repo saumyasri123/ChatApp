@@ -66,6 +66,11 @@ io.on("connection", (socket) => {
     // console.log("User joined Room: ", room);
   });
 
+  socket.on("leave chat", (room) => {
+    socket.leave(room);
+    // console.log("User left Room: ", room);
+  });
+
   socket.on("newMessage", (newMessageStatus) => {
     var chat = newMessageStatus.chat;
     if(!chat.users){

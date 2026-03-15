@@ -36,9 +36,14 @@ function ChatArea() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ── 2. Join the correct chat room whenever chat_id changes ───────────────
+    // ── 2. Join correct room, leave old one to prevent message bleed ────────
+    const prevChatId = useRef(null);
     useEffect(() => {
+        if (prevChatId.current && prevChatId.current !== chat_id) {
+            socket.emit("leave chat", prevChatId.current);
+        }
         socket.emit("join chat", chat_id);
+        prevChatId.current = chat_id;
     }, [chat_id]);
 
     // ── 3. Listen for incoming messages — cleaned up on every re-attach ──────
