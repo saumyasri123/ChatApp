@@ -30,7 +30,7 @@ function Login() {
         };
 
         const response = await axios.post(
-            "http://localhost:8080/user/login/",
+            `${process.env.REACT_APP_SERVER_URL || "http://localhost:8080"}/user/login/`,
             data,
             config
         );
@@ -58,7 +58,7 @@ function Login() {
       };
 
       const response = await axios.post(
-        "http://localhost:8080/user/register/",
+        `${process.env.REACT_APP_SERVER_URL || "http://localhost:8080"}/user/register/`,
         data,
         config
       );

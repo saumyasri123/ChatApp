@@ -44,7 +44,7 @@ function CreateGroups() {
       };
       // Only pass the current logged-in user as initial member (no stale hardcoded IDs)
       axios.post(
-        "http://localhost:8080/chat/createGroup",
+        `${process.env.REACT_APP_SERVER_URL || "http://localhost:8080"}/chat/createGroup`,
         {
           name: groupName,
           users: JSON.stringify([user._id]),

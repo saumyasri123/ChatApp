@@ -33,7 +33,7 @@ function Users() {
                 Authorization: `Bearer ${userData.data.token}`,
             },
         };
-        axios.get("http://localhost:8080/user/fetchUsers", config).then((data) => {
+        axios.get(`${process.env.REACT_APP_SERVER_URL || "http://localhost:8080"}/user/fetchUsers`, config).then((data) => {
             // console.log("UData refreshed in Users panel ");
             setUsers(data.data);
             // setRefresh(!refresh);
@@ -83,7 +83,7 @@ function Users() {
                                             Authorization: `Bearer ${userData.data.token}`,
                                         },
                                     };
-                                    axios.post("http://localhost:8080/chat/",
+                                    axios.post(`${process.env.REACT_APP_SERVER_URL || "http://localhost:8080"}/chat/`,
                                         {
                                             userId: user._id,
                                         },

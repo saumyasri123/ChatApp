@@ -36,7 +36,7 @@ function Groups() {
       };
   
       axios
-        .get("http://localhost:8080/chat/fetchGroups", config)
+        .get(`${process.env.REACT_APP_SERVER_URL || "http://localhost:8080"}/chat/fetchGroups`, config)
         .then((response) => {
           console.log("Group Data from API ", response.data);
           SetGroups(response.data);
@@ -89,7 +89,7 @@ function Groups() {
                         },
                       };
                       axios.put(
-                        "http://localhost:8080/chat/addSelfToGroup",
+                        `${process.env.REACT_APP_SERVER_URL || "http://localhost:8080"}/chat/addSelfToGroup`,
                         {
                           chatId: group._id,
                           userId: userData.data._id,

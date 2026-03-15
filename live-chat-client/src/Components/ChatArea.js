@@ -11,7 +11,7 @@ import axios from "axios";
 import { myContext } from "./MainContainer";
 import io from "socket.io-client";
 
-const ENDPOINT = "http://localhost:8080";
+const ENDPOINT = process.env.REACT_APP_SERVER_URL || "http://localhost:8080";
 
 // Single persistent socket — created once outside the component
 var socket = io(ENDPOINT);
@@ -77,7 +77,7 @@ function ChatArea() {
             },
         };
         axios
-            .get("http://localhost:8080/message/" + chat_id, config)
+            .get(`${ENDPOINT}/message/` + chat_id, config)
             .then(({ data }) => {
                 setAllMessages(data);
                 chatCacheRef.current[chat_id] = data;   // update cache
@@ -101,7 +101,7 @@ function ChatArea() {
         };
         axios
             .post(
-                "http://localhost:8080/message/",
+                `${ENDPOINT}/message/`,
                 { content: messageContent, chatId: chat_id },
                 config
             )

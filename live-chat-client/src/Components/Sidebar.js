@@ -42,7 +42,7 @@ function Sidebar() {
             Authorization: `Bearer ${user.token}`,
             },
         };
-        axios.get("http://localhost:8080/chat/", config).then((response) => {
+        axios.get(`${process.env.REACT_APP_SERVER_URL || "http://localhost:8080"}/chat/`, config).then((response) => {
             // console.log("Data refresh in sidebar ", response.data);
             setConversations(response.data);
             setConversations(response.data);
